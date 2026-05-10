@@ -2,35 +2,69 @@
 
 Capture a 1-2 week resource-usage baseline on any Mac (CPU + GPU + memory + Activity Monitor screenshots), then assemble it into a single PDF report. Designed for IT teams answering "is this person's hardware sized correctly?"
 
-## Quick start
+macOS only.
+
+## Install
+
+Pick **one** of the two methods. Both end with a `baseline` command in your PATH.
+
+### Method 1 -- One-line install (recommended)
+
+Open Terminal on the Mac you want to measure and paste this:
 
 ```bash
-# 1. Install
-./install.sh                    # puts `baseline` into /usr/local/bin
-
-# 2. Start the campaign on the user's Mac
-baseline start
-
-# 3. Wait 1-2 weeks. Sanity-check any time:
-baseline status
-
-# 4. Build the PDF
-baseline build                  # opens the PDF on your Desktop
+curl -fsSL https://raw.githubusercontent.com/Quattio/macbook-baseline/main/install.sh | bash
 ```
 
-That's it. Three commands.
+That's it. The script downloads the toolkit to `~/.local/share/macbook-baseline` and symlinks the `baseline` command into `/usr/local/bin` (will ask for your password to do so).
 
-## What it captures
+### Method 2 -- Manual (if you can't pipe curl into bash)
+
+```bash
+git clone https://github.com/Quattio/macbook-baseline.git
+cd macbook-baseline
+./install.sh
+```
+
+Or download the ZIP from [the GitHub page](https://github.com/Quattio/macbook-baseline) (green "Code" button -> "Download ZIP"), unzip it, then `cd` into the folder and run `./install.sh`.
+
+### Verify the install worked
+
+```bash
+baseline help
+```
+
+If you see the help screen, you're done. If `command not found`, see [Troubleshooting](#troubleshooting) below.
+
+## Use
+
+Three commands cover the whole lifecycle:
+
+```bash
+baseline start     # day 0  -- begin scheduled captures (every 30 min while awake)
+baseline status    # any day -- check it's running, see capture count
+baseline build     # day 14 -- assemble the PDF (lands on Desktop, auto-opens)
+```
+
+Then to clean up:
+
+```bash
+baseline stop        # stop further captures (data preserved)
+baseline uninstall   # remove the launchd job (data preserved)
+rm -rf ~/MacBook-Baseline   # only if you want to delete the captured data
+```
+
+## What gets captured
 
 Every 30 minutes while the Mac is awake (configurable):
 
 - `top -l 1` -- CPU%, load average, PhysMem
-- `vm_stat` -- pages free / active / inactive / wired / **compressed** (the kernel's "running out of RAM" signal)
+- `vm_stat` -- pages free/active/inactive/wired/**compressed** (the kernel's "running out of RAM" signal)
 - `ps -axo` -- top RAM and top CPU consumers
 - `ioreg IOAccelerator` -- GPU device utilisation % (no sudo needed, Apple Silicon)
 - `iostat`, `netstat -ib`
 - `powermetrics` -- CPU/GPU watts (only if passwordless sudo is configured; harmlessly skipped otherwise)
-- **Activity Monitor screenshots** -- Memory tab + CPU tab, captured by Quartz window ID. The script will **never** fall back to a full-screen capture, so no desktop content can leak.
+- **Activity Monitor screenshots** -- Memory tab + CPU tab, captured by Quartz window ID. Will **never** fall back to a full-screen capture, so no desktop content can leak.
 
 ## What the PDF contains
 
@@ -41,7 +75,13 @@ Every 30 minutes while the Mac is awake (configurable):
 
 A typical 14-day campaign produces ~250-350 captures, ~150-300 MB on disk, and a 5-15 MB PDF.
 
-## Commands
+## First-capture permission prompt
+
+The very first time `baseline start` triggers a capture, macOS will pop a Screen Recording permission dialog. **Click Allow.** Without it, the Activity Monitor screenshots are silently skipped (the rest of the data still captures, but the visual proof in the PDF is missing).
+
+You may need to grant the permission to `bash` (or whichever process launchd uses to run the script).
+
+## Commands reference
 
 ```
 baseline start              Install deps + start scheduled captures (every 30 min while awake)
@@ -65,37 +105,7 @@ Plus:
 
 - Google Chrome (used headlessly to render the HTML report into PDF). If Chrome lives somewhere other than `/Applications/Google Chrome.app/`, edit the path inside `scripts/build-baseline-pdf.sh`.
 
-## macOS permissions
-
-The Activity Monitor screenshots use `screencapture -l<window-id>`. macOS will prompt the **first time** the script tries to capture for Screen Recording permission -- approve it. Without that permission, the rest of the capture still runs; only the AM screenshots are skipped (logged as `AM-skip`).
-
-You may need to grant the permission to `bash` (or whichever process launchd uses to run the script).
-
-## Manual install (without `install.sh`)
-
-```bash
-chmod +x bin/baseline scripts/*.sh
-ln -sf "$(pwd)/bin/baseline" /usr/local/bin/baseline
-baseline start
-```
-
-## File layout
-
-```
-macbook-baseline-bundle/
-├── bin/
-│   └── baseline                              # CLI entry point
-├── scripts/
-│   ├── memory-snapshot.sh                    # one capture
-│   └── build-baseline-pdf.sh                 # assemble PDF
-├── launchd/
-│   └── com.macbook-baseline.snapshot.plist   # scheduled-capture template
-├── install.sh                                # symlinks `baseline` into PATH
-├── INSTALL.md                                # manual install (advanced)
-└── README.md
-```
-
-## Environment variables
+## Environment overrides
 
 | Variable | Default | Purpose |
 |---|---|---|
@@ -105,11 +115,36 @@ macbook-baseline-bundle/
 
 ## Troubleshooting
 
-- **`baseline: command not found`** -- `/usr/local/bin` may not be in your PATH. Run with the full path: `~/macbook-baseline-bundle/bin/baseline status`.
-- **`AM-skip: no window id` in the log** -- Activity Monitor was minimised when the capture ran. Re-open it; subsequent captures will pick it up.
-- **Empty PDF / "no captures"** -- run `baseline status` to verify captures landed. If `Job: not loaded`, run `baseline start`.
-- **Chart says `Parsed 0 captures`** -- `MIN_CAPTURE_TS` may be set too far in the future, or the layout is non-standard. Captures must live at `$SNAPSHOT_DIR/YYYY-MM-DD/HH-MM-report.txt`.
+**`baseline: command not found`**
+`/usr/local/bin` may not be in your PATH. Either add it (`echo 'export PATH="/usr/local/bin:$PATH"' >> ~/.zshrc`), or run with the full path: `~/.local/share/macbook-baseline/bin/baseline help` (Method 1 install) or `<repo-dir>/bin/baseline help` (Method 2 install).
+
+**`AM-skip: no window id` in the log**
+Activity Monitor was minimised or off-screen when the capture ran. Re-open it; subsequent captures will pick it up.
+
+**Empty PDF / "no captures"**
+Run `baseline status` to verify captures landed. If `Job: not loaded`, run `baseline start`.
+
+**Chart says `Parsed 0 captures`**
+`MIN_CAPTURE_TS` may be set too far in the future, or layout is non-standard. Captures must live at `$SNAPSHOT_DIR/YYYY-MM-DD/HH-MM-report.txt`.
+
+**`baseline build` hangs**
+Should not happen any more (Chrome is killed once the PDF lands). If it does, `Ctrl-C` and check `pgrep -fl 'Google Chrome.*--headless'` -- those are leftover headless Chrome processes you can `kill`.
+
+## File layout
+
+```
+macbook-baseline/
+├── bin/
+│   └── baseline                              # CLI entry point
+├── scripts/
+│   ├── memory-snapshot.sh                    # one capture
+│   └── build-baseline-pdf.sh                 # assemble PDF
+├── launchd/
+│   └── com.macbook-baseline.snapshot.plist   # scheduled-capture template
+├── install.sh                                # symlinks `baseline` into PATH
+└── README.md
+```
 
 ## License
 
-MIT-equivalent. Use freely.
+MIT. See [LICENSE](LICENSE).
