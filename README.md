@@ -1,10 +1,10 @@
-# MacBook Workload Baseline Toolkit
+# Workload Baseline Toolkit
 
-Capture a 1-2 week resource-usage baseline on any Mac (CPU + GPU + memory + Activity Monitor screenshots), then assemble it into a single PDF report. Designed for IT teams answering "is this person's hardware sized correctly?"
+Capture a 1-2 week resource-usage baseline on a Mac or Windows machine (CPU + GPU + memory + screenshots/charts), then assemble it into a single PDF report. Designed for IT teams answering "is this person's hardware sized correctly?"
 
-macOS only.
+> **Windows users:** see [`windows/README.md`](windows/README.md) -- separate one-line PowerShell installer + the same `baseline start/status/build` lifecycle. The rest of this README covers the macOS toolkit.
 
-## Install
+## Install (macOS)
 
 Pick **one** of the two methods. Both end with a `baseline` command in your PATH.
 
