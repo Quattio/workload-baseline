@@ -448,6 +448,8 @@ if [ ! -x "$CHROME" ]; then
     exit 1
 fi
 
+# Chrome headless can hang after writing the PDF on some macOS versions, so
+# run it in the background and kill it once the PDF appears (or 90 s passes).
 "$CHROME" \
     --headless=new \
     --disable-gpu \
@@ -457,7 +459,29 @@ fi
     --allow-file-access-from-files \
     --user-data-dir="$TMPDIR/chrome-profile" \
     --virtual-time-budget=60000 \
-    "file://$HTML" 2>/dev/null
+    "file://$HTML" >/dev/null 2>&1 &
+CHROME_PID=$!
+
+# Wait for the PDF to land (up to 90 s)
+for i in $(seq 1 90); do
+    if [ -s "$PDF_OUT" ]; then
+        # File exists and is non-empty; give Chrome 1 more second to finish writing
+        sleep 1
+        break
+    fi
+    sleep 1
+done
+
+# Kill Chrome regardless of state -- it has done its job
+kill "$CHROME_PID" 2>/dev/null
+sleep 1
+kill -9 "$CHROME_PID" 2>/dev/null
+wait "$CHROME_PID" 2>/dev/null
+
+if [ ! -s "$PDF_OUT" ]; then
+    echo "ERROR: Chrome did not produce a PDF at $PDF_OUT" >&2
+    exit 1
+fi
 
 SIZE=$(ls -l "$PDF_OUT" | awk '{print $5}')
 echo ""
