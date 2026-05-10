@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.macbook-baseline.snapshot</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <!-- EDIT THIS PATH: point at where you installed memory-snapshot.sh -->
+        <string>/Users/CHANGE_ME/macbook-baseline-bundle/scripts/memory-snapshot.sh</string>
+    </array>
+
+    <!-- Every 30 minutes whenever the machine is awake. macOS skips runs while
+         the machine is asleep, so this naturally captures only "live" hours. -->
+    <key>StartInterval</key>
+    <integer>1800</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- EDIT THESE PATHS: point at a writable location for logs -->
+    <key>StandardOutPath</key>
+    <string>/Users/CHANGE_ME/MacBook-Baseline/snapshot-launchd.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/CHANGE_ME/MacBook-Baseline/snapshot-launchd.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <!-- EDIT: your home dir -->
+        <string>/Users/CHANGE_ME</string>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin</string>
+        <key>REASON</key>
+        <string>scheduled</string>
+        <!-- High cap; ~32 captures/day at 30-min interval is well under this. -->
+        <key>DAILY_CAP</key>
+        <string>200</string>
+    </dict>
+</dict>
+</plist>

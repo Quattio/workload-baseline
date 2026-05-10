@@ -1,0 +1,213 @@
+#!/bin/bash
+# baseline -- single-command CLI for the MacBook Workload Baseline Toolkit.
+#
+# Subcommands:
+#   baseline start              Install Python deps + load launchd job (start campaign)
+#   baseline status             Show campaign state, capture count, last log line
+#   baseline build [--min-ts T] Build the PDF report from collected captures
+#   baseline stop               Unload the launchd job (stop capturing)
+#   baseline uninstall          Stop + remove launchd plist (does NOT delete captures)
+#   baseline help               Show this help
+
+set -e
+
+# --- locate the bundle root regardless of how baseline was invoked ---
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [ -L "$SCRIPT_PATH" ]; do
+    SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+done
+BUNDLE_ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
+SCRIPTS_DIR="$BUNDLE_ROOT/scripts"
+LAUNCHD_TEMPLATE="$BUNDLE_ROOT/launchd/com.macbook-baseline.snapshot.plist"
+
+SNAPSHOT_DIR="${SNAPSHOT_DIR:-$HOME/MacBook-Baseline}"
+PLIST_INSTALLED="$HOME/Library/LaunchAgents/com.macbook-baseline.snapshot.plist"
+LABEL="com.macbook-baseline.snapshot"
+
+cmd="${1:-help}"
+shift || true
+
+# Pretty-print helpers
+say()  { printf '%s\n' "$*"; }
+warn() { printf '!! %s\n' "$*" >&2; }
+die()  { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+
+ensure_deps() {
+    if ! command -v python3 >/dev/null 2>&1; then
+        die "python3 not found. Install Xcode Command Line Tools or python.org first."
+    fi
+    if ! python3 -c 'import matplotlib' 2>/dev/null; then
+        say "Installing matplotlib..."
+        pip3 install --user matplotlib >/dev/null
+    fi
+    if ! python3 -c 'import Quartz' 2>/dev/null; then
+        say "Installing pyobjc-framework-Quartz..."
+        pip3 install --user pyobjc-framework-Quartz >/dev/null
+    fi
+}
+
+cmd_start() {
+    [ -f "$LAUNCHD_TEMPLATE" ] || die "launchd template not found at $LAUNCHD_TEMPLATE"
+    [ -x "$SCRIPTS_DIR/memory-snapshot.sh" ] || die "memory-snapshot.sh missing or not executable"
+
+    ensure_deps
+
+    mkdir -p "$SNAPSHOT_DIR"
+    mkdir -p "$HOME/Library/LaunchAgents"
+
+    say "Configuring launchd job for $USER..."
+    sed -e "s|/Users/CHANGE_ME/macbook-baseline-bundle/scripts/memory-snapshot.sh|$SCRIPTS_DIR/memory-snapshot.sh|g" \
+        -e "s|/Users/CHANGE_ME/MacBook-Baseline|$SNAPSHOT_DIR|g" \
+        -e "s|/Users/CHANGE_ME|$HOME|g" \
+        "$LAUNCHD_TEMPLATE" > "$PLIST_INSTALLED"
+
+    # If already loaded, unload first (re-load on path change)
+    if launchctl list 2>/dev/null | grep -q "$LABEL"; then
+        say "Reloading existing job..."
+        launchctl unload "$PLIST_INSTALLED" 2>/dev/null || true
+    fi
+
+    say "Loading launchd job..."
+    launchctl load "$PLIST_INSTALLED"
+
+    say ""
+    say "Campaign started. Captures land in: $SNAPSHOT_DIR"
+    say "Default interval: every 30 minutes while the machine is awake."
+    say ""
+    say "Important: macOS will prompt for Screen Recording permission the first time"
+    say "the script tries to capture Activity Monitor. Approve it -- without that,"
+    say "the AM screenshots are silently skipped."
+    say ""
+    say "Next steps:"
+    say "  baseline status    # check it's running"
+    say "  baseline build     # after 1-2 weeks, generate the PDF"
+}
+
+cmd_status() {
+    say "Bundle:     $BUNDLE_ROOT"
+    say "Snapshots:  $SNAPSHOT_DIR"
+    if [ -f "$PLIST_INSTALLED" ]; then
+        say "Plist:      $PLIST_INSTALLED (installed)"
+    else
+        say "Plist:      not installed (run 'baseline start')"
+    fi
+
+    if launchctl list 2>/dev/null | grep -q "$LABEL"; then
+        say "Job:        loaded"
+    else
+        say "Job:        not loaded"
+    fi
+
+    if [ -d "$SNAPSHOT_DIR" ]; then
+        local captures days last_log
+        captures=$(find "$SNAPSHOT_DIR" -name '*-report.txt' 2>/dev/null | wc -l | tr -d ' ')
+        days=$(find "$SNAPSHOT_DIR" -mindepth 1 -maxdepth 1 -type d -name '20*' 2>/dev/null | wc -l | tr -d ' ')
+        say "Captures:   $captures across $days day(s)"
+        if [ -f "$SNAPSHOT_DIR/snapshot.log" ]; then
+            last_log=$(tail -n 1 "$SNAPSHOT_DIR/snapshot.log" 2>/dev/null)
+            [ -n "$last_log" ] && say "Last log:   $last_log"
+        fi
+    else
+        say "Captures:   none yet"
+    fi
+}
+
+cmd_build() {
+    local min_ts=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --min-ts) min_ts="$2"; shift 2 ;;
+            --min-ts=*) min_ts="${1#--min-ts=}"; shift ;;
+            -h|--help)
+                say "Usage: baseline build [--min-ts YYYY-MM-DD_HH-MM]"
+                say ""
+                say "Builds a PDF from all captures in $SNAPSHOT_DIR."
+                say "Use --min-ts to filter out captures before that timestamp"
+                say "(useful if early captures were broken)."
+                exit 0
+                ;;
+            *) die "unknown flag: $1" ;;
+        esac
+    done
+
+    [ -d "$SNAPSHOT_DIR" ] || die "$SNAPSHOT_DIR not found -- run 'baseline start' first"
+    local report_count
+    report_count=$(find "$SNAPSHOT_DIR" -name '*-report.txt' 2>/dev/null | wc -l | tr -d ' ')
+    [ "$report_count" -gt 0 ] || die "no captures yet in $SNAPSHOT_DIR"
+
+    ensure_deps
+
+    if [ -n "$min_ts" ]; then
+        MIN_CAPTURE_TS="$min_ts" SNAPSHOT_DIR="$SNAPSHOT_DIR" "$SCRIPTS_DIR/build-baseline-pdf.sh"
+    else
+        SNAPSHOT_DIR="$SNAPSHOT_DIR" "$SCRIPTS_DIR/build-baseline-pdf.sh"
+    fi
+
+    local pdf
+    pdf="$HOME/Desktop/MacBook-Baseline-Report-$(date +%F).pdf"
+    if [ -f "$pdf" ]; then
+        say ""
+        say "Opening $pdf"
+        open "$pdf" 2>/dev/null || true
+    fi
+}
+
+cmd_stop() {
+    if [ ! -f "$PLIST_INSTALLED" ]; then
+        say "Nothing to stop -- plist not installed."
+        return 0
+    fi
+    if launchctl list 2>/dev/null | grep -q "$LABEL"; then
+        launchctl unload "$PLIST_INSTALLED"
+        say "Stopped. Captures preserved in $SNAPSHOT_DIR."
+    else
+        say "Job not loaded (already stopped)."
+    fi
+}
+
+cmd_uninstall() {
+    cmd_stop || true
+    if [ -f "$PLIST_INSTALLED" ]; then
+        rm "$PLIST_INSTALLED"
+        say "Removed $PLIST_INSTALLED"
+    fi
+    say ""
+    say "Captures NOT deleted. Remove manually if desired:"
+    say "  rm -rf $SNAPSHOT_DIR"
+}
+
+cmd_help() {
+    cat <<'HELP'
+baseline -- MacBook Workload Baseline Toolkit
+
+Usage:
+  baseline start              Install deps + start scheduled captures
+  baseline status             Show current state, capture count, last log
+  baseline build [--min-ts T] Generate PDF from collected captures, open it
+                              T format: YYYY-MM-DD_HH-MM (filter early captures)
+  baseline stop               Stop scheduled captures (preserves data)
+  baseline uninstall          Stop + remove launchd plist (preserves data)
+  baseline help               This screen
+
+Typical workflow:
+  baseline start              # day 0 -- begin campaign
+  baseline status             # any time -- sanity check
+  baseline build              # day 14 -- generate PDF report
+  baseline stop               # day 14 -- stop further captures
+
+Environment overrides:
+  SNAPSHOT_DIR  Where captures live (default: $HOME/MacBook-Baseline)
+
+Captures land in $SNAPSHOT_DIR; PDF lands on $HOME/Desktop/.
+HELP
+}
+
+case "$cmd" in
+    start)     cmd_start     "$@" ;;
+    status)    cmd_status    "$@" ;;
+    build)     cmd_build     "$@" ;;
+    stop)      cmd_stop      "$@" ;;
+    uninstall) cmd_uninstall "$@" ;;
+    help|-h|--help) cmd_help ;;
+    *) cmd_help; exit 1 ;;
+esac
