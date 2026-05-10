@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.macbook-baseline.snapshot</string>
+    <string>com.workload-baseline.snapshot</string>
 
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
         <!-- EDIT THIS PATH: point at where you installed memory-snapshot.sh -->
-        <string>/Users/CHANGE_ME/macbook-baseline-bundle/scripts/memory-snapshot.sh</string>
+        <string>/Users/CHANGE_ME/workload-baseline/macos/scripts/memory-snapshot.sh</string>
     </array>
 
     <!-- Every 30 minutes whenever the machine is awake. macOS skips runs while

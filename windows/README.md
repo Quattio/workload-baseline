@@ -13,22 +13,22 @@ Pick **one** method.
 Open PowerShell (no admin required) on the Windows machine you want to measure and paste:
 
 ```powershell
-iwr -useb https://raw.githubusercontent.com/Quattio/macbook-baseline/main/windows/install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/Quattio/workload-baseline/main/windows/install.ps1 | iex
 ```
 
-This downloads the toolkit to `%LOCALAPPDATA%\Quattio\macbook-baseline`, drops a `baseline.cmd` shim into `%USERPROFILE%\.local\bin`, and adds that folder to your user PATH.
+This downloads the toolkit to `%LOCALAPPDATA%\Quattio\workload-baseline`, drops a `baseline.cmd` shim into `%USERPROFILE%\.local\bin`, and adds that folder to your user PATH.
 
 **Then open a new terminal window** for the PATH change to take effect.
 
 ### Method 2 -- Manual (after cloning or downloading the repo)
 
 ```powershell
-git clone https://github.com/Quattio/macbook-baseline.git
-cd macbook-baseline\windows
+git clone https://github.com/Quattio/workload-baseline.git
+cd workload-baseline\windows
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-Or grab the ZIP from [the GitHub page](https://github.com/Quattio/macbook-baseline) (green **Code** button -> **Download ZIP**), extract, then `cd` into `windows\` and run the install command above.
+Or grab the ZIP from [the GitHub page](https://github.com/Quattio/workload-baseline) (green **Code** button -> **Download ZIP**), extract, then `cd` into `windows\` and run the install command above.
 
 ### Verify the install worked
 

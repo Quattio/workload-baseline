@@ -18,11 +18,11 @@ while [ -L "$SCRIPT_PATH" ]; do
 done
 BUNDLE_ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
 SCRIPTS_DIR="$BUNDLE_ROOT/scripts"
-LAUNCHD_TEMPLATE="$BUNDLE_ROOT/launchd/com.macbook-baseline.snapshot.plist"
+LAUNCHD_TEMPLATE="$BUNDLE_ROOT/launchd/com.workload-baseline.snapshot.plist"
 
 SNAPSHOT_DIR="${SNAPSHOT_DIR:-$HOME/MacBook-Baseline}"
-PLIST_INSTALLED="$HOME/Library/LaunchAgents/com.macbook-baseline.snapshot.plist"
-LABEL="com.macbook-baseline.snapshot"
+PLIST_INSTALLED="$HOME/Library/LaunchAgents/com.workload-baseline.snapshot.plist"
+LABEL="com.workload-baseline.snapshot"
 
 cmd="${1:-help}"
 shift || true
@@ -56,7 +56,7 @@ cmd_start() {
     mkdir -p "$HOME/Library/LaunchAgents"
 
     say "Configuring launchd job for $USER..."
-    sed -e "s|/Users/CHANGE_ME/macbook-baseline-bundle/scripts/memory-snapshot.sh|$SCRIPTS_DIR/memory-snapshot.sh|g" \
+    sed -e "s|/Users/CHANGE_ME/workload-baseline/macos/scripts/memory-snapshot.sh|$SCRIPTS_DIR/memory-snapshot.sh|g" \
         -e "s|/Users/CHANGE_ME/MacBook-Baseline|$SNAPSHOT_DIR|g" \
         -e "s|/Users/CHANGE_ME|$HOME|g" \
         "$LAUNCHD_TEMPLATE" > "$PLIST_INSTALLED"

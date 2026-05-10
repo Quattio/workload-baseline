@@ -3,10 +3,10 @@
 # Two ways to use this:
 #
 #   1. One-liner (no clone needed -- this script downloads the toolkit):
-#      iwr -useb https://raw.githubusercontent.com/Quattio/macbook-baseline/main/windows/install.ps1 | iex
+#      iwr -useb https://raw.githubusercontent.com/Quattio/workload-baseline/main/windows/install.ps1 | iex
 #
 #   2. Manual (after cloning or downloading the repo):
-#      cd macbook-baseline\windows
+#      cd workload-baseline\windows
 #      powershell -ExecutionPolicy Bypass -File .\install.ps1
 #
 # Result: a `baseline` command in your PATH (via $env:USERPROFILE\.local\bin).
@@ -19,9 +19,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$RepoUrl     = 'https://github.com/Quattio/macbook-baseline.git'
-$TarballUrl  = 'https://github.com/Quattio/macbook-baseline/archive/refs/heads/main.zip'
-$BundleHome  = if ($env:BUNDLE_HOME) { $env:BUNDLE_HOME } else { "$env:LOCALAPPDATA\Quattio\macbook-baseline" }
+$RepoUrl     = 'https://github.com/Quattio/workload-baseline.git'
+$TarballUrl  = 'https://github.com/Quattio/workload-baseline/archive/refs/heads/main.zip'
+$RepoHome    = if ($env:REPO_HOME) { $env:REPO_HOME } else { "$env:LOCALAPPDATA\Quattio\workload-baseline" }
 
 # --- Detect mode: running from inside the cloned bundle, or piped via iex? ---
 $source = $MyInvocation.MyCommand.Path
@@ -31,8 +31,8 @@ if ($source -and (Test-Path $source) -and (Test-Path (Join-Path (Split-Path -Par
     Write-Host "Installing from local bundle at $WindowsDir"
 } else {
     # Piped via iex -- need to download
-    $WindowsDir = Join-Path $BundleHome 'windows'
-    $repoRoot   = $BundleHome
+    $WindowsDir = Join-Path $RepoHome 'windows'
+    $repoRoot   = $RepoHome
 
     if (Get-Command git -ErrorAction SilentlyContinue) {
         if (Test-Path (Join-Path $repoRoot '.git')) {
@@ -48,11 +48,11 @@ if ($source -and (Test-Path $source) -and (Test-Path (Join-Path (Split-Path -Par
         Write-Host "git not installed -- downloading zip -> $repoRoot"
         if (Test-Path $repoRoot) { Remove-Item -Recurse -Force $repoRoot }
         New-Item -ItemType Directory -Force -Path $repoRoot | Out-Null
-        $zipPath = Join-Path $env:TEMP "macbook-baseline-main.zip"
+        $zipPath = Join-Path $env:TEMP "workload-baseline-main.zip"
         Invoke-WebRequest -Uri $TarballUrl -OutFile $zipPath -UseBasicParsing
-        $extractTmp = Join-Path $env:TEMP "macbook-baseline-extract-$([guid]::NewGuid())"
+        $extractTmp = Join-Path $env:TEMP "workload-baseline-extract-$([guid]::NewGuid())"
         Expand-Archive -Path $zipPath -DestinationPath $extractTmp -Force
-        # The zip extracts to macbook-baseline-main/ -- move its contents up
+        # The zip extracts to workload-baseline-main/ -- move its contents up
         $inner = Get-ChildItem -Path $extractTmp -Directory | Select-Object -First 1
         Copy-Item -Path (Join-Path $inner.FullName '*') -Destination $repoRoot -Recurse -Force
         Remove-Item -Recurse -Force $extractTmp

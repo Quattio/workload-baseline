@@ -1,12 +1,13 @@
 #!/bin/bash
-# install.sh -- install the `baseline` command into PATH.
+# install.sh -- install the `baseline` command into PATH (macOS).
 #
 # Two ways to use this:
 #
 #   1. One-liner (no clone needed -- this script downloads the toolkit):
-#      curl -fsSL https://raw.githubusercontent.com/Quattio/macbook-baseline/main/install.sh | bash
+#      curl -fsSL https://raw.githubusercontent.com/Quattio/workload-baseline/main/macos/install.sh | bash
 #
 #   2. Manual (after cloning or downloading the repo):
+#      cd workload-baseline/macos
 #      ./install.sh
 #
 # Defaults: installs `baseline` into /usr/local/bin (asks for sudo if needed).
@@ -14,41 +15,41 @@
 
 set -e
 
-REPO_URL="https://github.com/Quattio/macbook-baseline.git"
-TARBALL_URL="https://github.com/Quattio/macbook-baseline/archive/refs/heads/main.tar.gz"
-BUNDLE_HOME="${BUNDLE_HOME:-$HOME/.local/share/macbook-baseline}"
+REPO_URL="https://github.com/Quattio/workload-baseline.git"
+TARBALL_URL="https://github.com/Quattio/workload-baseline/archive/refs/heads/main.tar.gz"
+REPO_HOME="${REPO_HOME:-$HOME/.local/share/workload-baseline}"
 
 if [ "$(uname)" != "Darwin" ]; then
-    echo "ERROR: this toolkit is macOS-only." >&2
+    echo "ERROR: macOS only. For Windows, see https://github.com/Quattio/workload-baseline/blob/main/windows/README.md" >&2
     exit 1
 fi
 
-# --- Detect mode: running from inside the bundle, or piped via curl? ---
+# --- Detect mode: running from inside the macos/ folder, or piped via curl? ---
 SOURCE="${BASH_SOURCE[0]:-}"
 if [ -n "$SOURCE" ] && [ -f "$SOURCE" ] && [ -d "$(dirname "$SOURCE")/bin" ]; then
-    # Running from inside the cloned/extracted bundle
+    # Running from inside the cloned/extracted macos/ folder
     BUNDLE_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
-    echo "Installing from local bundle at $BUNDLE_DIR"
+    echo "Installing from local macos/ folder at $BUNDLE_DIR"
 else
     # Piped via curl -- need to fetch the toolkit ourselves
-    BUNDLE_DIR="$BUNDLE_HOME"
     if command -v git >/dev/null 2>&1; then
-        if [ -d "$BUNDLE_DIR/.git" ]; then
-            echo "Updating existing toolkit at $BUNDLE_DIR..."
-            git -C "$BUNDLE_DIR" pull --quiet
+        if [ -d "$REPO_HOME/.git" ]; then
+            echo "Updating existing toolkit at $REPO_HOME..."
+            git -C "$REPO_HOME" pull --quiet
         else
-            echo "Cloning toolkit -> $BUNDLE_DIR"
-            mkdir -p "$(dirname "$BUNDLE_DIR")"
-            rm -rf "$BUNDLE_DIR"
-            git clone --quiet "$REPO_URL" "$BUNDLE_DIR"
+            echo "Cloning toolkit -> $REPO_HOME"
+            mkdir -p "$(dirname "$REPO_HOME")"
+            rm -rf "$REPO_HOME"
+            git clone --quiet "$REPO_URL" "$REPO_HOME"
         fi
     else
         # Fallback: tarball download (works without git installed)
-        echo "git not installed -- downloading tarball -> $BUNDLE_DIR"
-        rm -rf "$BUNDLE_DIR"
-        mkdir -p "$BUNDLE_DIR"
-        curl -fsSL "$TARBALL_URL" | tar -xz --strip-components=1 -C "$BUNDLE_DIR"
+        echo "git not installed -- downloading tarball -> $REPO_HOME"
+        rm -rf "$REPO_HOME"
+        mkdir -p "$REPO_HOME"
+        curl -fsSL "$TARBALL_URL" | tar -xz --strip-components=1 -C "$REPO_HOME"
     fi
+    BUNDLE_DIR="$REPO_HOME/macos"
 fi
 
 # --- Sanity check ---
